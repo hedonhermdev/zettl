@@ -2,14 +2,10 @@ use crate::config::Config;
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use heck::TitleCase;
-use ignore::Walk;
+use ignore::{DirEntry, Error, Walk};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    io::{BufWriter, Write},
-    path::Path,
-};
+use std::{ffi::OsStr, fs, io::{BufWriter, Write}, path::{Path, PathBuf}};
 
 mod my_date_format {
     use chrono::{DateTime, Local, TimeZone};
@@ -52,43 +48,57 @@ pub struct FrontMatter<'a> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Edge {
+pub struct Link {
     source: String,
     target: String
 }
 
-pub type Node = String;
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Node {
+    id: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Graph {
     nodes: Vec<Node>,
-    edges: Vec<Edge>
+    links: Vec<Link>
 }
 
-pub fn update_index(cfg: &Config, directory: &Path) -> Result<()> {
-    let index_entries: Vec<String> = directory.read_dir()
+pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<PathBuf>) {
+    let mut items: Vec<String> = vec![];
+    let mut dirs: Vec<PathBuf> = vec![];
+    directory.read_dir()
         .unwrap()
-        .map(|entry| {
+        .for_each(|entry| {
             let entry = entry.unwrap();
-            let mut index_entry = entry
-                .path()
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
-            if entry.file_type().unwrap().is_dir() {
-                update_index(cfg, entry.path().as_path()).unwrap();
-                index_entry.push_str("/_index")
+            let ft = entry.file_type().unwrap();
+            let path = entry.path();
+            let relpath = path.strip_prefix(prefix).unwrap();
+            if relpath.starts_with(".") {
+                return
+            }
+            if ft.is_dir() {
+                let mut item = relpath.to_string_lossy().to_string();
+                item.push_str("/_index");
+                items.push(item);
+                dirs.push(path.clone());
             }
 
-            index_entry
-        }).collect();
+            if ft.is_file() {
+                if path.extension() == Some(OsStr::new("md")) {
+                    items.push(relpath.to_string_lossy().to_string().strip_suffix(".md").unwrap().to_owned());
+                }
+            }
+        });
 
+    (items, dirs)
+}
 
-    let index_file = directory.join(Path::new("_index.md"));
-    // Fix this
-    let dirname = directory
+pub fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
+    let (items, dirs) = get_index_items(base, cur);
+
+    let index_file = cur.join(Path::new("_index.md"));
+    let dirname = cur
         .file_name()
         .unwrap()
         .to_os_string()
@@ -96,7 +106,6 @@ pub fn update_index(cfg: &Config, directory: &Path) -> Result<()> {
         .unwrap();
 
     let title = dirname.to_title_case();
-
     let front_matter = FrontMatter {
         title: &title,
         author: &cfg.author,
@@ -113,16 +122,22 @@ pub fn update_index(cfg: &Config, directory: &Path) -> Result<()> {
 
     buf.write(format!("\n# {}\n\n", title).as_bytes())?;
 
-    if !index_entries.is_empty() {
-        for entry in index_entries {
-            if entry.starts_with(".") || entry == "_index" {
-                continue;
-            }
-            buf.write(format!("- [[{}]]\n", entry).as_bytes())?;
+    for entry in items {
+        if entry.starts_with(".") || entry == "_index" {
+            continue;
         }
+        buf.write(format!("- [[{}]]\n", entry).as_bytes())?;
+    }
+
+    for dir in dirs {
+        write_index_file(cfg, base, &dir)?;
     }
 
     Ok(())
+}
+
+pub fn update_index(cfg: &Config, directory: &Path) -> Result<()> {
+    write_index_file(cfg, directory, directory)
 }
 
 pub fn open_file_in_editor(
@@ -131,12 +146,10 @@ pub fn open_file_in_editor(
     file: &Path,
 ) -> Result<subprocess::ExitStatus> {
     cfg.editor_cmd.split(" ");
-    println!("{:#?}", &cfg.editor_args);
     let exec = subprocess::Exec::cmd(cfg.editor_cmd.clone())
         .args(&cfg.editor_args)
         .arg(file.as_os_str())
         .cwd(basedir);
-    println!("{:#?}", exec);
     let exit_status = exec.join()?;
 
     Ok(exit_status)
@@ -162,32 +175,62 @@ pub fn update_graph(directory: &Path) -> Result<()> {
 
     let re = Regex::new(r"\[\[([^\]\[]+)\]\]").unwrap();
 
+    let files: Vec<DirEntry> = Walk::new(directory)
+        .map(|entry| entry.unwrap())
+        .filter(|entry| entry.path().extension() == Some(OsStr::new("md")))
+        .collect();
+
+    let targets: Vec<String> = files
+        .iter()
+        .map(|f| {
+            f
+                .path()
+                .strip_prefix(directory)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .strip_suffix(".md")
+                .unwrap()
+                .to_owned()
+            }).collect();
+        
+    let nodes = targets
+        .clone()
+        .iter()
+        .map(|t| Node{ id: t.clone() })
+        .collect();
+
     let mut graph =  Graph {
-        nodes: vec![],
-        edges: vec![]
+        nodes,
+        links: vec![]
     };
 
-    Walk::new(directory)
-        .for_each(|entry| {
-            let entry = entry.unwrap();
-            if entry.file_name().to_str().unwrap().ends_with(".md") {
-                let node = entry.path().strip_prefix(directory).unwrap().to_str().unwrap().to_owned();
+    files
+        .iter()
+        .for_each(|f| {
+            let text = fs::read_to_string(f.path()).expect("Could not read file");
+            
+            let source = f
+                .path()
+                .strip_prefix(directory)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .strip_suffix(".md")
+                .unwrap()
+                .to_owned();
 
-                graph.nodes.push(node.clone());
-
-                let text = fs::read_to_string(entry.path()).expect("Unable to read file. Check permissions");
-
-                for m in re.find_iter(&text) {
-                    let cap = re.captures(m.as_str()).unwrap().get(1).unwrap();
-                    let edge = Edge{
-                        source: node.clone(),
-                        target: cap.as_str().to_owned()
+            for m in re.find_iter(&text) {
+                let cap = re.captures(m.as_str()).unwrap().get(1).unwrap();
+                if let Some(target) = targets.iter().filter(|n| *n == cap.as_str()).next() {
+                    let link = Link{
+                        source: source.clone(),
+                        target: target.to_string(),
                     };
-
-                    graph.edges.push(edge);
+                    graph.links.push(link);
                 }
             }
-        });
+    });
 
     let ser = serde_json::to_vec(&graph)?;
 

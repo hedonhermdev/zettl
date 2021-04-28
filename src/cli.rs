@@ -28,8 +28,8 @@ pub enum Command {
     Graph,
 }
 
-#[structopt(name = "zettl", about = "A blazing fast note-taking system")]
 #[derive(Debug, StructOpt)]
+#[structopt(name = "zettl", about = "A blazing fast note-taking system")]
 pub struct CLI {
     #[structopt(
         name = "basedir",
