@@ -18,7 +18,7 @@ pub enum Command {
             name = "NAME",
             about = "Name to give your note. This can contain a path like apple/pen."
         )]
-            name: PathBuf,
+        name: PathBuf,
     },
 
     #[structopt(name = "index", about = "Create indexes.")]
@@ -37,9 +37,9 @@ pub struct CLI {
         env = "ZETTL_DIRECTORY",
         default_value = "~/zettel"
     )]
-        basedir: PathBuf,
-        #[structopt(subcommand)]
-        command: Command,
+    basedir: PathBuf,
+    #[structopt(subcommand)]
+    command: Command,
 }
 
 impl CLI {
@@ -50,11 +50,11 @@ impl CLI {
         let mut basedir = args.basedir;
 
         if basedir.as_path() == Path::new("~") {
-            basedir = dirs::home_dir().ok_or(Error::msg("Invalid path"))?;
+            basedir = dirs::home_dir().ok_or_else(|| Error::msg("Invalid path"))?;
         }
 
         if basedir.starts_with("~/") {
-            let home_dir = dirs::home_dir().ok_or(Error::msg("Invalid path"))?;
+            let home_dir = dirs::home_dir().ok_or_else(|| Error::msg("Invalid path"))?;
 
             basedir = basedir.strip_prefix("~/")?.to_path_buf();
 

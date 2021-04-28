@@ -15,14 +15,14 @@ pub struct Config {
 
 impl Config {
     pub fn default() -> Self {
-        return Config {
+        Config {
             name: "My Zettelkasten".to_owned(),
             author: "Me".to_owned(),
             editor_cmd: "vim".to_owned(),
             editor_args: vec![],
             indexes: true,
             graph: true,
-        };
+        }
     }
 
     pub fn serialize(&self) -> Result<String> {

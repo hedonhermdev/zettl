@@ -73,7 +73,7 @@ These commands will open a markdown file in the editor you specified.
 
 ### Graphs and Indexes
 
-Zettl creates `_index.md` files in each directory to index your notes. You can turn this off by setting the following in the config directory.
+Zettl creates `index.md` files in each directory to index your notes. You can turn this off by setting the following in the config directory.
 
 ```yaml
 indexes: false

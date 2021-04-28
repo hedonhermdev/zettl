@@ -88,7 +88,9 @@ pub fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
     let now = chrono::Local::now();
 
-    let note_file = basedir.join("notes").join(&format!("{}.md", name.to_str().unwrap()));
+    let note_file = basedir
+        .join("notes")
+        .join(&format!("{}.md", name.to_str().unwrap()));
     if let Some(note_dir) = note_file.parent() {
         fs::create_dir_all(note_dir)?;
     };
@@ -96,7 +98,7 @@ pub fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
     if !(note_file.exists()) {
         let title = &note_file
             .file_stem()
-            .ok_or(Error::msg("Invalid note name"))?
+            .ok_or_else(|| Error::msg("Invalid note name"))?
             .to_string_lossy()
             .to_title_case();
 
@@ -108,7 +110,6 @@ pub fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
 
         write_skeleton(&note_file, &front_matter)?;
     }
-
 
     open_file_in_editor(&cfg, basedir.as_path(), &note_file)
         .context("Could not open file in editor")?;
@@ -133,7 +134,6 @@ pub fn index(basedir: PathBuf) -> Result<()> {
 
     Ok(())
 }
-
 
 pub fn graph(basedir: PathBuf) -> Result<()> {
     update_graph(&basedir)?;
