@@ -131,11 +131,13 @@ pub fn open_file_in_editor(
     file: &Path,
 ) -> Result<subprocess::ExitStatus> {
     cfg.editor_cmd.split(" ");
-    let exit_status = subprocess::Exec::cmd(cfg.editor_cmd.clone())
-        .arg(file.as_os_str())
+    println!("{:#?}", &cfg.editor_args);
+    let exec = subprocess::Exec::cmd(cfg.editor_cmd.clone())
         .args(&cfg.editor_args)
-        .cwd(basedir)
-        .join()?;
+        .arg(file.as_os_str())
+        .cwd(basedir);
+    println!("{:#?}", exec);
+    let exit_status = exec.join()?;
 
     Ok(exit_status)
 }
