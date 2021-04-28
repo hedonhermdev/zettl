@@ -34,7 +34,7 @@ pub struct CLI {
     #[structopt(
         name = "basedir",
         long,
-        env = "ZETTL_BASEDIR",
+        env = "ZETTL_DIRECTORY",
         default_value = "~/zettel"
     )]
         basedir: PathBuf,

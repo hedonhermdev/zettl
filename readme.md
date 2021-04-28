@@ -65,14 +65,13 @@ graph: true
 Once Zettl is initialized, you can use it to write notes from anywhere.
 
 ```bash
-# Create a new fleeting note
+# Create a new fleeting note. These are like daily notes.
 $ zettl fleet
 # Create a new note
 $ zettl note some-idea
 # Create a new note in a category
 $ zettl note project1/some-idea
 ```
-
 These commands will open a markdown file in the editor you specified. 
 
 
