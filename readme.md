@@ -110,6 +110,43 @@ $ zettl graph
 $ zettl index
 ```
 
+## How Your Notes are Saved
+Zettl saves your notes as markdown files. After a few days of using zettl, your zettl directory will look something like this:
+```
+/Users/hedonhermdev/kasten
+├── _index.md
+├── fleets
+│   ├── 2021-04-28.md
+│   ├── 2021-04-29.md
+│   └── _index.md
+└── notes
+    ├── SDNs
+    │   ├── _index.md
+    │   └── p4-notes.md
+    ├── _index.md
+    ├── devops
+    │   ├── _index.md
+    │   ├── git-server-setup.md
+    │   └── homegrown-autodeployment.md
+    ├── git
+    │   ├── _index.md
+    │   ├── cli.md
+    │   ├── error-handling.md
+    │   ├── git-in-rust.md
+    │   ├── implementation.md
+    │   └── internal-objects.md
+    ├── how-to-zettel.md
+    ├── vim
+    │   ├── _index.md
+    │   ├── autocmds.md
+    │   └── vimrc-for-servers.md
+    ├── workflow.md
+    ├── zettl
+    │   ├── _index.md
+    │   ├── philosophy.md
+    │   └── roadmap.md
+```
+
 ## Integrations
 
 While zettl doesnt have a programmatic way to support integrations (yet!) but here are some integrations I can think of:
