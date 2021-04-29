@@ -1,6 +1,8 @@
 # Zettl
 ⚡️A blazing fast way of maintaining powerful notes with connections between them.
 
+[![asciicast](https://asciinema.org/a/vSIiOqDOEsIuGuOgTOMlBPTN3.svg)](https://asciinema.org/a/vSIiOqDOEsIuGuOgTOMlBPTN3)
+
 ## Installing Zettl
 
 To install Zettl, you will need the Rust toolchain installed. You can install Rust using [rustup](https://rustup.rs). Once you have Rust installed, clone the repository and install the binary using cargo.
