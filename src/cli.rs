@@ -50,11 +50,11 @@ impl CLI {
         let mut basedir = args.basedir;
 
         if basedir.as_path() == Path::new("~") {
-            basedir = dirs::home_dir().ok_or_else(|| Error::msg("Invalid path"))?;
+            basedir = dirs_next::home_dir().ok_or_else(|| Error::msg("Invalid path"))?;
         }
 
         if basedir.starts_with("~/") {
-            let home_dir = dirs::home_dir().ok_or_else(|| Error::msg("Invalid path"))?;
+            let home_dir = dirs_next::home_dir().ok_or_else(|| Error::msg("Invalid path"))?;
 
             basedir = basedir.strip_prefix("~/")?.to_path_buf();
 
