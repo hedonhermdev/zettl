@@ -63,9 +63,9 @@ Once Zettl is initialized, you can use it to write notes from anywhere.
 ```bash
 # Create a new fleeting note. These are like daily notes.
 $ zettl fleet
-# Create a new note
+# Create a new note. This will be created in notes/some-idea.md. 
 $ zettl note some-idea
-# Create a new note in a category
+# Create a new note in a category. This will be created in notes/project1/some-idea.md.
 $ zettl note project1/some-idea
 ```
 These commands will open a markdown file in the editor you specified. 
@@ -73,10 +73,25 @@ These commands will open a markdown file in the editor you specified.
 
 ### Graphs and Indexes
 
-Zettl creates `index.md` files in each directory to index your notes. You can turn this off by setting the following in the config directory.
+Zettl creates `_index.md` files in each directory to index your notes. You can turn this off by setting the following in the config directory.
 
 ```yaml
 indexes: false
+```
+
+The `fleets/_index.md` file will look kind of like this:
+
+```md
+---
+title: Fleets Index
+author: Tirth Jain
+created: "2021-04-29 11:16:25"
+---
+
+# Fleets Index
+
+- [[fleets/2021-04-28]]
+- [[fleets/2021-04-29]]
 ```
 
 Similarly, Zettl creates a `.graph.json` file to track connections between your notes. You can visualize this graph with a visualizer of your choice. I prefer [3d-force-graph](https://github.com/vasturiano/3d-force-graph). Note that connections are made using the [[mediawiki]] link format. 
@@ -91,4 +106,22 @@ To manually create the graph and the indexes, you can run:
 ```bash
 $ zettl graph
 $ zettl index
+```
+
+## Integrations
+
+While zettl doesnt have a programmatic way to support integrations (yet!) but here are some integrations I can think of:
+
+- Version control with git
+```bash
+$ cd $ZETTL_DIRECTORY
+$ git init
+$ git add .
+$ git commit -m "Saving notes"
+```
+
+- Publish your notes as a static site with [Hugo](https://gohugo.io). This [theme](https://github.com/crisrojas/Zettels) handles mediawiki links as well. 
+```bash
+$ ln -s $ZETTL_DIRECTORY path/to/hugo/content
+$ hugo serve
 ```
