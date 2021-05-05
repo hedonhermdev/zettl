@@ -87,7 +87,7 @@ pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<Pat
             dirs.push(path.clone());
         }
 
-        if ft.is_file() && path.extension() == Some(OsStr::new("md")) {
+        if ft.is_file() && path.extension() == Some(OsStr::new("md")) && path.file_stem() != Some(OsStr::new("_index")) {
             items.push(
                 relpath
                     .to_string_lossy()
@@ -104,6 +104,8 @@ pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<Pat
 
 pub fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
     let (items, dirs) = get_index_items(base, cur);
+
+    println!("{:#?}", &items);
 
     let index_file = cur.join(Path::new("_index.md"));
     let dirname = cur
@@ -130,7 +132,7 @@ pub fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
     contents.push_str(&format!("\n# {}\n\n", title));
 
     for entry in items {
-        if entry.starts_with('.') || entry == "_index" {
+        if entry.starts_with('.') {
             continue;
         }
         contents.push_str(&format!("- [[{}]]\n", entry));
