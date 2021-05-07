@@ -5,12 +5,7 @@ use heck::TitleCase;
 use ignore::{DirEntry, Walk};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{
-    ffi::OsStr,
-    fs,
-    io::{BufWriter, Write},
-    path::{Path, PathBuf},
-};
+use std::{ffi::OsStr, fs, io::{BufWriter, Write}, path::{Path, PathBuf}, rc::Rc};
 
 mod my_date_format {
     use chrono::{DateTime, Local, TimeZone};
@@ -54,13 +49,13 @@ pub struct FrontMatter<'a> {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
-    source: String,
-    target: String,
+    source: Rc<String>,
+    target: Rc<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Node {
-    id: String,
+    id: Rc<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,22 +67,37 @@ pub struct Graph {
 pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<PathBuf>) {
     let mut items: Vec<String> = vec![];
     let mut dirs: Vec<PathBuf> = vec![];
-    directory.read_dir().unwrap().for_each(|entry| {
-        let entry = entry.unwrap();
-        let ft = entry.file_type().unwrap();
-        let path = entry.path();
+
+    let mut paths: Vec<PathBuf> = directory
+        .read_dir()
+        .unwrap()
+        .map(|entry| {
+            let entry = entry.expect("Failed to read DirEntry");
+
+            let path = entry.path();
+
+            path
+    }).collect();
+
+    paths.sort_by_key(|p| { fs::metadata(p).unwrap().modified().unwrap()});
+    paths.reverse();
+
+    paths
+        .iter()
+        .for_each(|path| {
+        let meta = fs::metadata(path).unwrap();
         let relpath = path.strip_prefix(prefix).unwrap();
         if relpath.starts_with(".") {
             return;
         }
-        if ft.is_dir() {
+        if meta.is_dir() {
             let mut item = relpath.to_string_lossy().to_string();
             item.push_str("/_index");
             items.push(item);
-            dirs.push(path.clone());
+            dirs.push(path.to_path_buf());
         }
 
-        if ft.is_file() && path.extension() == Some(OsStr::new("md")) && path.file_stem() != Some(OsStr::new("_index")) {
+        if meta.is_file() && path.extension() == Some(OsStr::new("md")) && path.file_stem() != Some(OsStr::new("_index")) {
             items.push(
                 relpath
                     .to_string_lossy()
@@ -190,10 +200,11 @@ pub fn update_graph(directory: &Path) -> Result<()> {
         .filter(|entry| entry.path().extension() == Some(OsStr::new("md")))
         .collect();
 
-    let targets: Vec<String> = files
+    let targets: Vec<Rc<String>> = files
         .iter()
         .map(|f| {
-            f.path()
+            Rc::new(
+                f.path()
                 .strip_prefix(directory)
                 .unwrap()
                 .to_str()
@@ -201,10 +212,11 @@ pub fn update_graph(directory: &Path) -> Result<()> {
                 .strip_suffix(".md")
                 .unwrap()
                 .to_owned()
+            )
         })
         .collect();
 
-    let nodes = targets.iter().map(|t| Node { id: t.clone() }).collect();
+    let nodes = targets.iter().map(|t| Node { id: t.clone()}).collect();
 
     let mut graph = Graph {
         nodes,
@@ -214,7 +226,8 @@ pub fn update_graph(directory: &Path) -> Result<()> {
     files.iter().for_each(|f| {
         let text = fs::read_to_string(f.path()).expect("Could not read file");
 
-        let source = f
+        let source = Rc::new(
+            f
             .path()
             .strip_prefix(directory)
             .unwrap()
@@ -222,14 +235,15 @@ pub fn update_graph(directory: &Path) -> Result<()> {
             .unwrap()
             .strip_suffix(".md")
             .unwrap()
-            .to_owned();
+            .to_owned()
+        );
 
         for m in re.find_iter(&text) {
             let cap = re.captures(m.as_str()).unwrap().get(1).unwrap();
-            if let Some(target) = targets.iter().find(|n| *n == cap.as_str()) {
+            if let Some(target) = targets.iter().find(|n| n.as_str() == cap.as_str()) {
                 let link = Link {
                     source: source.clone(),
-                    target: target.to_string(),
+                    target: target.clone(),
                 };
                 graph.links.push(link);
             }
