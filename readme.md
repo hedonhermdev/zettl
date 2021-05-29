@@ -18,7 +18,7 @@ You will need to create a directory to store your notes. You can tell zettl to u
 
 ```bash
 $ mkdir ~/kasten
-$ echo "ZETTL_DIRECTORY=~/kasten" >> .bashrc
+$ echo "export ZETTL_DIRECTORY=~/kasten" >> .bashrc
 ```
 
 Initializing zettl creates a `.zettl` directory in your base directory.
