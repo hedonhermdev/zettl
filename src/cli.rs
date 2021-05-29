@@ -43,7 +43,7 @@ pub struct CLI {
 }
 
 impl CLI {
-    pub fn run() -> Result<()> {
+    pub async fn run() -> Result<()> {
         let args = Self::from_args();
 
         // Sanitize base dir
@@ -66,15 +66,25 @@ impl CLI {
         // Match and execute command
         use Command::*;
         match args.command {
-            Init => init(basedir).context("Failed to initialize in the given base directory."),
+            Init => init(basedir)
+                .await
+                .context("Failed to initialize in the given base directory."),
 
-            Fleet => fleet(basedir).context("Failed to open fleet."),
+            Fleet => fleet(basedir)
+                .await
+                .context("Failed to open fleet."),
 
-            Note { name } => note(basedir, name).context("Failed to open note with the given name"),
+            Note { name } => note(basedir, name)
+                .await
+                .context("Failed to open note with the given name"),
 
-            Index => index(basedir).context("Failed to index notes."),
+            Index => index(basedir)
+                .await
+                .context("Failed to index notes."),
 
-            Graph => graph(basedir).context("Failed to create graph of notes"),
+            Graph => graph(basedir)
+                .await
+                .context("Failed to create graph of notes"),
         }
     }
 }

@@ -1,11 +1,18 @@
-use crate::config::Config;
 use anyhow::Result;
+use async_recursion::async_recursion;
 use chrono::{DateTime, Local};
 use heck::TitleCase;
 use ignore::{DirEntry, Walk};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{ffi::OsStr, fs, io::{BufWriter, Write}, path::{Path, PathBuf}, rc::Rc};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
+use tokio::{fs, io::AsyncWriteExt};
+
+use crate::config::Config;
 
 mod my_date_format {
     use chrono::{DateTime, Local, TimeZone};
@@ -64,7 +71,7 @@ pub struct Graph {
     links: Vec<Link>,
 }
 
-pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<PathBuf>) {
+pub async fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<PathBuf>) {
     let mut items: Vec<String> = vec![];
     let mut dirs: Vec<PathBuf> = vec![];
 
@@ -77,18 +84,18 @@ pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<Pat
             let path = entry.path();
 
             path
-    }).collect();
+        })
+        .collect();
 
-    paths.sort_by_key(|p| { fs::metadata(p).unwrap().modified().unwrap()});
+    // Use std metadata because you can't sort with an async function
+    paths.sort_by_key(|p| std::fs::metadata(p).unwrap().modified().unwrap());
     paths.reverse();
 
-    paths
-        .iter()
-        .for_each(|path| {
-        let meta = fs::metadata(path).unwrap();
+    for path in paths {
+        let meta = fs::metadata(&path).await.unwrap();
         let relpath = path.strip_prefix(prefix).unwrap();
         if relpath.starts_with(".") {
-            return;
+            break;
         }
         if meta.is_dir() {
             let mut item = relpath.to_string_lossy().to_string();
@@ -97,7 +104,10 @@ pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<Pat
             dirs.push(path.to_path_buf());
         }
 
-        if meta.is_file() && path.extension() == Some(OsStr::new("md")) && path.file_stem() != Some(OsStr::new("_index")) {
+        if meta.is_file()
+            && path.extension() == Some(OsStr::new("md"))
+            && path.file_stem() != Some(OsStr::new("_index"))
+        {
             items.push(
                 relpath
                     .to_string_lossy()
@@ -107,15 +117,14 @@ pub fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, Vec<Pat
                     .to_owned(),
             );
         }
-    });
+    }
 
     (items, dirs)
 }
 
-pub fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
-    let (items, dirs) = get_index_items(base, cur);
-
-    println!("{:#?}", &items);
+#[async_recursion]
+pub async fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
+    let (items, dirs) = get_index_items(base, cur).await;
 
     let index_file = cur.join(Path::new("_index.md"));
     let dirname = cur
@@ -135,8 +144,6 @@ pub fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
     let mut contents = serde_yaml::to_string(&front_matter)?;
     contents.push_str("---\n");
 
-    let mut buf = BufWriter::new(fs::File::create(index_file)?);
-
     // Write frontMatter
 
     contents.push_str(&format!("\n# {}\n\n", title));
@@ -148,17 +155,20 @@ pub fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
         contents.push_str(&format!("- [[{}]]\n", entry));
     }
 
-    for dir in dirs {
-        write_index_file(cfg, base, &dir)?;
-    }
+    fs::File::create(index_file)
+        .await?
+        .write_all(contents.as_bytes())
+        .await?;
 
-    buf.write_all(contents.as_bytes())?;
+    for dir in dirs {
+        write_index_file(cfg, base, &dir).await?;
+    }
 
     Ok(())
 }
 
-pub fn update_index(cfg: &Config, directory: &Path) -> Result<()> {
-    write_index_file(cfg, directory, directory)
+pub async fn update_index(cfg: &Config, directory: &Path) -> Result<()> {
+    write_index_file(cfg, directory, directory).await
 }
 
 pub fn open_file_in_editor(
@@ -176,23 +186,20 @@ pub fn open_file_in_editor(
     Ok(exit_status)
 }
 
-pub fn write_skeleton(file: &Path, front_matter: &FrontMatter) -> Result<()> {
-    let mut fm = serde_yaml::to_string(&front_matter)?;
+pub async fn write_skeleton(file: &Path, front_matter: &FrontMatter<'_>) -> Result<()> {
+    let mut fm = serde_yaml::to_string(front_matter)?;
     fm.push_str("---\n");
-
-    let mut buf = BufWriter::new(fs::File::create(file)?);
-
-    // Write frontMatter
-    buf.write_all(fm.as_bytes())?;
-
     let heading = format!("\n# {}\n", front_matter.title);
 
-    buf.write_all(heading.as_bytes())?;
+    fm.push_str(&heading);
+
+    // Write frontMatter
+    fs::File::create(file).await?.write_all(fm.as_bytes()).await?;
 
     Ok(())
 }
 
-pub fn update_graph(directory: &Path) -> Result<()> {
+pub async fn update_graph(directory: &Path) -> Result<()> {
     let re = Regex::new(r"\[\[([^\]\[]+)\]\]").unwrap();
 
     let files: Vec<DirEntry> = Walk::new(directory)
@@ -205,37 +212,38 @@ pub fn update_graph(directory: &Path) -> Result<()> {
         .map(|f| {
             Rc::new(
                 f.path()
-                .strip_prefix(directory)
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .strip_suffix(".md")
-                .unwrap()
-                .to_owned()
+                    .strip_prefix(directory)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .strip_suffix(".md")
+                    .unwrap()
+                    .to_owned(),
             )
         })
         .collect();
 
-    let nodes = targets.iter().map(|t| Node { id: t.clone()}).collect();
+    let nodes = targets.iter().map(|t| Node { id: t.clone() }).collect();
 
     let mut graph = Graph {
         nodes,
         links: vec![],
     };
 
-    files.iter().for_each(|f| {
-        let text = fs::read_to_string(f.path()).expect("Could not read file");
+    for f in files {
+        let text = fs::read_to_string(f.path())
+            .await
+            .expect("Could not read file");
 
         let source = Rc::new(
-            f
-            .path()
-            .strip_prefix(directory)
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .strip_suffix(".md")
-            .unwrap()
-            .to_owned()
+            f.path()
+                .strip_prefix(directory)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .strip_suffix(".md")
+                .unwrap()
+                .to_owned(),
         );
 
         for m in re.find_iter(&text) {
@@ -246,13 +254,18 @@ pub fn update_graph(directory: &Path) -> Result<()> {
                     target: target.clone(),
                 };
                 graph.links.push(link);
+            } else {
+                eprintln!("WARN: Broken link [[{}]] found in {}", cap.as_str(), source);
             }
         }
-    });
+    }
 
     let ser = serde_json::to_vec(&graph)?;
 
-    fs::File::create(directory.join(".graph.json"))?.write_all(&ser)?;
+    fs::File::create(directory.join(".graph.json"))
+        .await?
+        .write_all(&ser)
+        .await?;
 
     Ok(())
 }

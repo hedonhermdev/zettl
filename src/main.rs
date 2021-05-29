@@ -5,6 +5,7 @@ mod commands;
 mod config;
 mod utils;
 
-fn main() -> Result<()> {
-    cli::CLI::run()
+#[tokio::main]
+async fn main() -> Result<()> {
+    cli::CLI::run().await
 }

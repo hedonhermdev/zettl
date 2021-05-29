@@ -1,8 +1,7 @@
 use heck::TitleCase;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
+
+use tokio::fs;
 
 use anyhow::{Context, Error, Result};
 
@@ -13,39 +12,47 @@ use crate::{
 };
 
 /// Initialize the Zettl directory with the config etc.
-pub fn init(basedir: PathBuf) -> Result<()> {
+pub async fn init(basedir: PathBuf) -> Result<()> {
     // Create config dir
     let cfg_dir = basedir.join(Path::new(".zettl"));
-    fs::create_dir(cfg_dir.as_path()).context("Failed to create config directory")?;
+    fs::create_dir(cfg_dir.as_path())
+        .await
+        .context("Failed to create config directory")?;
 
     // Create fleets dir
     let fleets_dir = basedir.join(Path::new("fleets"));
-    fs::create_dir(fleets_dir).context("Failed to create fleets directory")?;
+    fs::create_dir(fleets_dir)
+        .await
+        .context("Failed to create fleets directory")?;
 
     // Create notes dir
     let notes_dir = basedir.join(Path::new("notes"));
-    fs::create_dir(notes_dir).context("Failed to create notes directory")?;
+    fs::create_dir(notes_dir)
+        .await
+        .context("Failed to create notes directory")?;
 
     // Store default config
     let cfg = Config::default();
     let ser = cfg.serialize().context("Failed to serialize context")?;
     let cfg_file = basedir.join(Path::new(".zettl/config.yml"));
-    fs::write(cfg_file, ser).context("Failed to write default config file")?;
+    fs::write(cfg_file, ser)
+        .await
+        .context("Failed to write default config file")?;
 
     // Create base index
     if cfg.indexes {
-        update_index(&cfg, &basedir).context("Failed to create _index.md")?;
+        update_index(&cfg, &basedir).await.context("Failed to create _index.md")?;
     }
 
     // Create graph
     if cfg.graph {
-        update_graph(&basedir)?;
+        update_graph(&basedir).await.context("Failed to create .graph.json")?;
     }
 
     Ok(())
 }
 
-pub fn fleet(basedir: PathBuf) -> Result<()> {
+pub async fn fleet(basedir: PathBuf) -> Result<()> {
     let cfg_file = basedir.join(".zettl/config.yml");
 
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
@@ -65,24 +72,24 @@ pub fn fleet(basedir: PathBuf) -> Result<()> {
             created: now,
         };
 
-        write_skeleton(&fleet_file, &front_matter)?;
+        write_skeleton(&fleet_file, &front_matter).await?;
     }
 
     open_file_in_editor(&cfg, basedir.as_path(), &fleet_file)
         .context("Could not open file in editor")?;
 
     if cfg.indexes {
-        update_index(&cfg, &basedir).context("Failed to create _index.md")?;
+        update_index(&cfg, &basedir).await.context("Failed to create _index.md")?;
     }
 
     if cfg.graph {
-        update_graph(&basedir)?;
+        update_graph(&basedir).await?;
     }
 
     Ok(())
 }
 
-pub fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
+pub async fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
     let cfg_file = basedir.join(".zettl/config.yml");
 
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
@@ -92,7 +99,7 @@ pub fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
         .join("notes")
         .join(&format!("{}.md", name.to_str().unwrap()));
     if let Some(note_dir) = note_file.parent() {
-        fs::create_dir_all(note_dir)?;
+        fs::create_dir_all(note_dir).await?;
     };
 
     if !(note_file.exists()) {
@@ -108,35 +115,35 @@ pub fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
             created: now,
         };
 
-        write_skeleton(&note_file, &front_matter)?;
+        write_skeleton(&note_file, &front_matter).await?;
     }
 
     open_file_in_editor(&cfg, basedir.as_path(), &note_file)
         .context("Could not open file in editor")?;
 
     if cfg.indexes {
-        update_index(&cfg, &basedir).context("Failed to create _index.md")?;
+        update_index(&cfg, &basedir).await.context("Failed to create _index.md")?;
     }
 
     if cfg.graph {
-        update_graph(&basedir)?;
+        update_graph(&basedir).await.context("Failed to create .graph.json")?;
     }
 
     Ok(())
 }
 
-pub fn index(basedir: PathBuf) -> Result<()> {
+pub async fn index(basedir: PathBuf) -> Result<()> {
     let cfg_file = basedir.join(".zettl/config.yml");
 
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
 
-    update_index(&cfg, &basedir)?;
+    update_index(&cfg, &basedir).await?;
 
     Ok(())
 }
 
-pub fn graph(basedir: PathBuf) -> Result<()> {
-    update_graph(&basedir)?;
+pub async fn graph(basedir: PathBuf) -> Result<()> {
+    update_graph(&basedir).await.context("Failed to create .graph.json")?;
 
     Ok(())
 }
