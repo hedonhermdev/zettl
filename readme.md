@@ -69,6 +69,10 @@ $ zettl fleet
 $ zettl note some-idea
 # Create a new note in a category. This will be created in notes/project1/some-idea.md.
 $ zettl note project1/some-idea
+# Listing all notes.
+$ zettl list
+# Listing all fleeting notes.
+$ zettl list -f
 ```
 These commands will open a markdown file in the editor you specified. 
 
@@ -163,4 +167,10 @@ $ git commit -m "Saving notes"
 ```bash
 $ ln -s $ZETTL_DIRECTORY path/to/hugo/content
 $ hugo serve
+```
+
+- Fuzzy finding notes with [fzf](https://github.com/junegunn/fzf)
+```bash
+# for notes
+$ zettl note $(zettl list | fzf)
 ```
