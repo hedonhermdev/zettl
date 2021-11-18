@@ -13,10 +13,6 @@ use crate::{
 
 /// Initialize the Zettl directory with the config etc.
 pub async fn init(basedir: PathBuf) -> Result<()> {
-    fs::create_dir_all(&basedir)
-        .await
-        .context("Failed to create zettl base directory")?;
-
     // Create config dir
     let cfg_dir = basedir.join(Path::new(".zettl"));
     fs::create_dir(cfg_dir.as_path())

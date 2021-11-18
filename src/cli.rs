@@ -61,6 +61,8 @@ impl CLI {
             basedir = home_dir.join(basedir);
         }
 
+        std::fs::create_dir_all(&basedir).context("Could not create base directory")?;
+
         let basedir = basedir.canonicalize().context("Invalid base directory")?;
 
         // Match and execute command
