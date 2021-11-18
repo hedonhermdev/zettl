@@ -2,7 +2,7 @@ use anyhow::{Context, Error, Result};
 use std::{path::Path, path::PathBuf};
 use structopt::StructOpt;
 
-use crate::commands::{fleet, graph, index, init, note};
+use crate::commands::{fleet, graph, index, init, note, list};
 
 #[derive(Debug, StructOpt)]
 pub enum Command {
@@ -19,6 +19,16 @@ pub enum Command {
             about = "Name to give your note. This can contain a path like apple/pen."
         )]
         name: PathBuf,
+    },
+
+    #[structopt(name = "list", about = "List all notes.")]
+    List {
+        #[structopt(
+            long = "fleet",
+            short = "f",
+            about = "Show fleeting notes if set."
+        )]
+        fleet: bool,
     },
 
     #[structopt(name = "index", about = "Create indexes.")]
@@ -85,6 +95,10 @@ impl CLI {
             Graph => graph(basedir)
                 .await
                 .context("Failed to create graph of notes"),
+
+            List { fleet } => list(basedir, fleet)
+                .await
+                .context("Failed to list notes"),
         }
     }
 }
