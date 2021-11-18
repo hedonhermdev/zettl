@@ -31,6 +31,16 @@ pub enum Command {
         name: PathBuf,
     },
 
+    #[structopt(name = "list", about = "List all notes.")]
+    List {
+        #[structopt(
+            long = "fleet",
+            short = "f",
+            about = "Show fleeting notes if set."
+        )]
+        fleet: bool,
+    },
+
     #[structopt(name = "index", about = "Create indexes.")]
     Index,
 
@@ -95,6 +105,10 @@ impl CLI {
             Graph => graph(basedir)
                 .await
                 .context("Failed to create graph of notes"),
+
+            List { fleet } => list(basedir, fleet)
+                .await
+                .context("Failed to list notes"),
         }
     }
 }
