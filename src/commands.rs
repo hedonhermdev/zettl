@@ -52,28 +52,42 @@ pub async fn init(basedir: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub async fn fleet(basedir: PathBuf) -> Result<()> {
-    let cfg_file = basedir.join(".zettl/config.yml");
+pub async fn fleet(basedir: PathBuf, name: Option<PathBuf>) -> Result<()> {
+    let cfg_file = basedir.join(CONFIG_DIR).join(CONFIG_FILE);
 
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
-    let now = chrono::Local::now();
 
-    let today = now.date().format("%Y-%m-%d");
-    let today_title = now.date().format("%A, %d %B %Y");
+    let fleet_file = match name {
+        Some(name) => {
+            let filepath = format!("fleets/{}.md", name.to_str().unwrap());
+            let fleet_file = basedir.join(filepath);
+            if !fleet_file.exists() {
+                anyhow::bail!("Fleeting note doesn't exist");
+            }
+            fleet_file
+        }
+        None => {
+            let now = chrono::Local::now();
 
-    let filepath = format!("fleets/{}.md", &today);
-    let title = format!("{}", &today_title);
-    let fleet_file = basedir.join(filepath);
+            let today = now.date().format("%Y-%m-%d");
+            let today_title = now.date().format("%A, %d %B %Y");
 
-    if !fleet_file.exists() {
-        let front_matter = FrontMatter {
-            title: &title,
-            author: &cfg.author,
-            created: now,
-        };
+            let filepath = format!("fleets/{}.md", &today);
+            let title = format!("{}", &today_title);
+            let fleet_file = basedir.join(filepath);
 
-        write_skeleton(&fleet_file, &front_matter).await?;
-    }
+            if !fleet_file.exists() {
+                let front_matter = FrontMatter {
+                    title: &title,
+                    author: &cfg.author,
+                    created: now,
+                };
+
+                write_skeleton(&fleet_file, &front_matter).await?;
+            }
+            fleet_file
+        }
+    };
 
     open_file_in_editor(&cfg, basedir.as_path(), &fleet_file)
         .context("Could not open file in editor")?;
@@ -88,6 +102,7 @@ pub async fn fleet(basedir: PathBuf) -> Result<()> {
 
     Ok(())
 }
+
 
 pub async fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
     let cfg_file = basedir.join(".zettl/config.yml");

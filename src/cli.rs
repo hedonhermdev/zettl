@@ -2,7 +2,7 @@ use anyhow::{Context, Error, Result};
 use std::{path::Path, path::PathBuf};
 use structopt::StructOpt;
 
-use crate::commands::{fleet, graph, index, init, note};
+use crate::commands::{fleet, graph, index, init, note, list};
 
 #[derive(Debug, StructOpt)]
 pub enum Command {
@@ -10,7 +10,17 @@ pub enum Command {
     Init,
 
     #[structopt(name = "fleet", about = "Create a new fleeting note")]
-    Fleet,
+    Fleet {
+        #[structopt(
+            short = "o",
+            long = "open"
+            about = r#"Name of the fleeting note to open.
+                       If value given, will open the fleeting note if present.
+                       Otherwise it will open/create a fleeting note for the current day.
+                    "#
+        )]
+        name: Option<PathBuf>,
+    },
 
     #[structopt(name = "note", about = "Create a new note")]
     Note {
@@ -70,7 +80,7 @@ impl CLI {
                 .await
                 .context("Failed to initialize in the given base directory."),
 
-            Fleet => fleet(basedir)
+            Fleet { name } => fleet(basedir, name)
                 .await
                 .context("Failed to open fleet."),
 
@@ -88,3 +98,4 @@ impl CLI {
         }
     }
 }
+
