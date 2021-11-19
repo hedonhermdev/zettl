@@ -13,7 +13,7 @@ pub enum Command {
     Fleet {
         #[structopt(
             short = "o",
-            long = "open"
+            long = "open",
             about = r#"Name of the fleeting note to open.
                        If value given, will open the fleeting note if present.
                        Otherwise it will open/create a fleeting note for the current day.
