@@ -2,6 +2,8 @@ use anyhow::{Context, Error, Result};
 use std::{path::Path, path::PathBuf};
 use structopt::StructOpt;
 
+use tokio::fs;
+
 use crate::commands::{fleet, graph, index, init, note};
 
 #[derive(Debug, StructOpt)]
@@ -61,7 +63,7 @@ impl CLI {
             basedir = home_dir.join(basedir);
         }
 
-        std::fs::create_dir_all(&basedir).context("Could not create base directory")?;
+        fs::create_dir_all(&basedir).await.context("Could not create base directory")?;
 
         let basedir = basedir.canonicalize().context("Invalid base directory")?;
 
