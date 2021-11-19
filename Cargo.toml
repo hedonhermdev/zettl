@@ -3,6 +3,12 @@ name = "zettl"
 version = "0.1.0"
 authors = ["Tirth Jain <jaintirth24@gmail.com>"]
 edition = "2018"
+repository = "https://github.com/hedonhermdev/zettl"
+homepage = "https://github.com/hedonhermdev/zettl"
+description = "A blazing-fast notetaking system"
+readme = "README.md"
+license = "MIT"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
