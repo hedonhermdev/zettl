@@ -5,12 +5,9 @@
 
 ## Installing Zettl
 
-To install Zettl, you will need the Rust toolchain installed. You can install Rust using [rustup](https://rustup.rs). Once you have Rust installed, clone the repository and install the binary using cargo.
-
+To install Zettl, you will need the Rust toolchain installed. You can install Rust using [rustup](https://rustup.rs). Once you have Rust installed, you can either install zettl from [crates.io](https://crates.io).
 ```bash
-
-$ git clone https://github.com/hedonhermdev/zettl
-$ cargo install --path zettl
+$ cargo install zettl
 ```
 
 ## Initializing Zettl
