@@ -69,7 +69,8 @@
           };
         }) // {
       overlays.default = final: prev: {
-        zettlWrapped = self.packages.${final.system}.zettl;
+        zettl = self.packages.${final.system}.zettl;
+        zettlBuilder = self.packages.${final.system}.zettlBuilder;
       };
     };
 

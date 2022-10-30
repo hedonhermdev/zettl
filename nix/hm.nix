@@ -2,7 +2,7 @@
 
 let 
   cfg = config.programs.zettl;
-  zettlBuilder = pkgs.zettlBuilder { config = cfg; };
+  zettl = pkgs.zettlBuilder { config = cfg.settings; };
 in 
 with lib; {
   options.programs.zettl = {
@@ -23,5 +23,9 @@ with lib; {
       '';
       description = "Options for your zettl notebook. ";
     };
+  };
+
+  config = mkIf cfg.enable {
+    home.packages = [ zettl ];
   };
 }
