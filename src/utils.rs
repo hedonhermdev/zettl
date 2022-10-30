@@ -14,7 +14,7 @@ use tokio::{fs, io::AsyncWriteExt};
 
 use crate::config::Config;
 
-mod my_date_format {
+mod zettl_date_format {
     use chrono::{DateTime, Local, TimeZone};
     use serde::{self, Deserialize, Deserializer, Serializer};
 
@@ -50,7 +50,7 @@ mod my_date_format {
 pub struct FrontMatter<'a> {
     pub title: &'a str,
     pub author: &'a str,
-    #[serde(with = "my_date_format")]
+    #[serde(with = "zettl_date_format")]
     pub created: DateTime<Local>,
 }
 
@@ -85,6 +85,7 @@ pub async fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, V
 
             path
         })
+        .filter(|d| !d.ends_with(".zettl"))
         .collect();
 
     // Use std metadata because you can't sort with an async function
@@ -92,7 +93,7 @@ pub async fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, V
     paths.reverse();
 
     for path in paths {
-        let meta = fs::metadata(&path).await.unwrap();
+        let meta = fs::metadata(dbg!(&path)).await.unwrap();
         let relpath = path.strip_prefix(prefix).unwrap();
         if relpath.starts_with(".") {
             break;
@@ -124,6 +125,7 @@ pub async fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, V
 
 #[async_recursion]
 pub async fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
+    dbg!(base);
     let (items, dirs) = get_index_items(base, cur).await;
 
     let index_file = cur.join(Path::new("_index.md"));

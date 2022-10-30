@@ -1,9 +1,9 @@
 use heck::TitleCase;
+use ignore::{DirEntry, Walk};
 use std::{
     ffi::OsStr,
-    path::PathBuf
+    path::Path,
 };
-use ignore::{DirEntry, Walk};
 
 use tokio::fs;
 
@@ -21,7 +21,7 @@ const FLEETS_DIR: &str = "fleets";
 const NOTES_DIR: &str = "notes";
 
 /// Initialize the Zettl directory with the config etc.
-pub async fn init(basedir: PathBuf) -> Result<()> {
+pub async fn init(basedir: &Path) -> Result<()> {
     // Create config dir
     let cfg_dir = basedir.join(CONFIG_DIR);
     fs::create_dir(&cfg_dir.as_path())
@@ -50,20 +50,22 @@ pub async fn init(basedir: PathBuf) -> Result<()> {
 
     // Create base index
     if cfg.indexes {
-        update_index(&cfg, &basedir).await.context("Failed to create _index.md")?;
+        update_index(&cfg, &basedir)
+            .await
+            .context("Failed to create _index.md")?;
     }
 
     // Create graph
     if cfg.graph {
-        update_graph(&basedir).await.context("Failed to create .graph.json")?;
+        update_graph(&basedir)
+            .await
+            .context("Failed to create .graph.json")?;
     }
 
     Ok(())
 }
 
-pub async fn fleet(basedir: PathBuf, name: Option<PathBuf>) -> Result<()> {
-    let cfg_file = basedir.join(CONFIG_DIR).join(CONFIG_FILE);
-
+pub async fn fleet(basedir: &Path, cfg_file: &Path, name: Option<&Path>) -> Result<()> {
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
 
     let fleet_file = match name {
@@ -98,11 +100,13 @@ pub async fn fleet(basedir: PathBuf, name: Option<PathBuf>) -> Result<()> {
         }
     };
 
-    open_file_in_editor(&cfg, basedir.as_path(), &fleet_file)
+    open_file_in_editor(&cfg, basedir, &fleet_file)
         .context("Could not open file in editor")?;
 
     if cfg.indexes {
-        update_index(&cfg, &basedir).await.context("Failed to create _index.md")?;
+        update_index(&cfg, &basedir)
+            .await
+            .context("Failed to create _index.md")?;
     }
 
     if cfg.graph {
@@ -112,10 +116,7 @@ pub async fn fleet(basedir: PathBuf, name: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-
-pub async fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
-    let cfg_file = basedir.join(CONFIG_DIR).join(CONFIG_FILE);
-
+pub async fn note(basedir: &Path, cfg_file: &Path, name: &Path) -> Result<()> {
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
     let now = chrono::Local::now();
 
@@ -142,23 +143,25 @@ pub async fn note(basedir: PathBuf, name: PathBuf) -> Result<()> {
         write_skeleton(&note_file, &front_matter).await?;
     }
 
-    open_file_in_editor(&cfg, basedir.as_path(), &note_file)
+    open_file_in_editor(&cfg, basedir, &note_file)
         .context("Could not open file in editor")?;
 
     if cfg.indexes {
-        update_index(&cfg, &basedir).await.context("Failed to create _index.md")?;
+        update_index(&cfg, &basedir)
+            .await
+            .context("Failed to create _index.md")?;
     }
 
     if cfg.graph {
-        update_graph(&basedir).await.context("Failed to create .graph.json")?;
+        update_graph(&basedir)
+            .await
+            .context("Failed to create .graph.json")?;
     }
 
     Ok(())
 }
 
-pub async fn index(basedir: PathBuf) -> Result<()> {
-    let cfg_file = basedir.join(CONFIG_DIR).join(CONFIG_FILE);
-
+pub async fn index(basedir: &Path, cfg_file: &Path) -> Result<()> {
     let cfg = Config::from_file(&cfg_file).context("Cannot read config file")?;
 
     update_index(&cfg, &basedir).await?;
@@ -166,46 +169,51 @@ pub async fn index(basedir: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub async fn graph(basedir: PathBuf) -> Result<()> {
-    update_graph(&basedir).await.context("Failed to create .graph.json")?;
+pub async fn graph(basedir: &Path) -> Result<()> {
+    update_graph(&basedir)
+        .await
+        .context("Failed to create .graph.json")?;
 
     Ok(())
 }
 
-pub async fn list(basedir: PathBuf, fleet: bool) -> Result<()> {
+pub async fn list(basedir: &Path, fleet: bool) -> Result<()> {
     let files: Box<dyn Iterator<Item = DirEntry>> = if fleet {
-        Box::new(Walk::new(basedir.join(FLEETS_DIR))
-            .map(|entry| entry.unwrap())
-            .filter(|entry| entry.path().extension() == Some(OsStr::new("md"))))
+        Box::new(
+            Walk::new(basedir.join(FLEETS_DIR))
+                .map(|entry| entry.unwrap())
+                .filter(|entry| entry.path().extension() == Some(OsStr::new("md"))),
+        )
     } else {
-        Box::new(Walk::new(basedir.join(NOTES_DIR))
-            .map(|entry| entry.unwrap())
-            .filter(|entry| entry.path().extension() == Some(OsStr::new("md"))))
+        Box::new(
+            Walk::new(basedir.join(NOTES_DIR))
+                .map(|entry| entry.unwrap())
+                .filter(|entry| entry.path().extension() == Some(OsStr::new("md"))),
+        )
     };
     files
-        .filter(|d| match d.path().file_name().map(|p| p.to_str().unwrap()) {
-            Some("_index.md") => false,
-            Some(_) => true,
-            _ => false,
-        })
-        .map(|d|
-            {
-                let path = d.path()
-                    .to_str()
-                    .unwrap()
-                    .strip_prefix(&format!("{}/", basedir.to_str().unwrap()))
-                    .unwrap();
-                let path = if fleet {
-                    path.strip_prefix(&format!("{}/", FLEETS_DIR))
-                } else {
-
-                    path.strip_prefix(&format!("{}/", NOTES_DIR))
-                }.unwrap();
-                path.strip_suffix(".md")
-                    .unwrap()
-                    .to_owned()
-            }
+        .filter(
+            |d| match d.path().file_name().map(|p| p.to_str().unwrap()) {
+                Some("_index.md") => false,
+                Some(_) => true,
+                _ => false,
+            },
         )
+        .map(|d| {
+            let path = d
+                .path()
+                .to_str()
+                .unwrap()
+                .strip_prefix(&format!("{}/", basedir.to_str().unwrap()))
+                .unwrap();
+            let path = if fleet {
+                path.strip_prefix(&format!("{}/", FLEETS_DIR))
+            } else {
+                path.strip_prefix(&format!("{}/", NOTES_DIR))
+            }
+            .unwrap();
+            path.strip_suffix(".md").unwrap().to_owned()
+        })
         .for_each(|f| println!("{}", f));
 
     Ok(())

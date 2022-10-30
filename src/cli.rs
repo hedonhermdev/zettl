@@ -59,6 +59,12 @@ pub struct CLI {
         default_value = "~/zettel"
     )]
     basedir: PathBuf,
+    #[structopt(
+        name = "config-file",
+        long,
+        env = "ZETTL_CFG",
+    )]
+    cfg_file: Option<PathBuf>,
     #[structopt(subcommand)]
     command: Command,
 }
@@ -86,30 +92,35 @@ impl CLI {
 
         let basedir = basedir.canonicalize().context("Invalid base directory")?;
 
+        let default_cfg_file = basedir.clone().join(".zettl/config.yml");
+
+        let cfg_file = args.cfg_file.unwrap_or(default_cfg_file);
+
+
         // Match and execute command
         use Command::*;
         match args.command {
-            Init => init(basedir)
+            Init => init(&basedir)
                 .await
                 .context("Failed to initialize in the given base directory."),
 
-            Fleet { name } => fleet(basedir, name)
+            Fleet { name } => fleet(&basedir, &cfg_file, name.as_deref())
                 .await
                 .context("Failed to open fleet."),
 
-            Note { name } => note(basedir, name)
+            Note { name } => note(&basedir, &cfg_file, name.as_path())
                 .await
                 .context("Failed to open note with the given name"),
 
-            Index => index(basedir)
+            Index => index(&basedir, &cfg_file)
                 .await
                 .context("Failed to index notes."),
 
-            Graph => graph(basedir)
+            Graph => graph(&basedir)
                 .await
                 .context("Failed to create graph of notes"),
 
-            List { fleet } => list(basedir, fleet)
+            List { fleet } => list(&basedir, fleet)
                 .await
                 .context("Failed to list notes"),
         }
