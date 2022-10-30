@@ -93,7 +93,7 @@ pub async fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, V
     paths.reverse();
 
     for path in paths {
-        let meta = fs::metadata(dbg!(&path)).await.unwrap();
+        let meta = fs::metadata(&path).await.unwrap();
         let relpath = path.strip_prefix(prefix).unwrap();
         if relpath.starts_with(".") {
             break;
@@ -125,7 +125,6 @@ pub async fn get_index_items(prefix: &Path, directory: &Path) -> (Vec<String>, V
 
 #[async_recursion]
 pub async fn write_index_file(cfg: &Config, base: &Path, cur: &Path) -> Result<()> {
-    dbg!(base);
     let (items, dirs) = get_index_items(base, cur).await;
 
     let index_file = cur.join(Path::new("_index.md"));
