@@ -3,12 +3,53 @@
 
 [![asciicast](https://asciinema.org/a/vSIiOqDOEsIuGuOgTOMlBPTN3.svg)](https://asciinema.org/a/vSIiOqDOEsIuGuOgTOMlBPTN3)
 
+(i know its broken im too lazy to re-record)
+
 ## Installing Zettl
 
 To install Zettl, you will need the Rust toolchain installed. You can install Rust using [rustup](https://rustup.rs). Once you have Rust installed, you can either install zettl from [crates.io](https://crates.io).
 ```bash
 $ cargo install zettl
 ```
+
+### Using Home Manager
+Zettl now ships as a Nix flake with a `home-manger` module. Since zettl is not part of Nixpkgs (yet!), you need to add the zettl overlay to your nixpkgs. 
+
+If you use a flake to manager your NixOS configuration, you can add the following to your `flake.nix`
+```nix
+  inputs = {
+   zettl.url = "github:hedonhermdev/zettl";
+  };
+
+  ...
+  pkgs = import nixpkgs {
+    inherit system;
+    config = {
+      allowUnfree = true;
+    };
+
+    overlays = [
+      zetl.overlays.default
+    ];
+  };
+```
+
+And to add it to your home programs, you can do something like: 
+
+```nix
+programs.zettl = {
+  enable = true;
+  settings = {
+    zettl = {
+      zettlDir = "${config.home.homeDirectory}/kasten";
+      editorCmd = "${pkgs.nvimPacked}/bin/nvim";
+      author = "Tirth Jain";
+      name = "zettelkasten";
+    };
+  };
+};
+```
+
 
 ## Initializing Zettl
 You will need to create a directory to store your notes. You can tell zettl to use this directory  by setting the `$ZETTL_DIRECTORY` variable. Note that zettl will use this directory for all operations so you will probably have to set this variable in your `.bashrc` (or your `.zshrc`).
