@@ -11,19 +11,19 @@ in
     zettl = {
       zettlDir = mkOption {
         description = "path to the zettl notebook";
-        type = types.string;
+        type = types.str;
         default = "";
       };
 
       name = mkOption {
         description = "name of the zettl notebook";
-        type = types.string;
+        type = types.str;
         default = "My Zettelkasten";
       };
 
       author = mkOption {
         description = "name of the zettl author";
-        type = types.string;
+        type = types.str;
         default = "My Zettelkasten";
       };
 
